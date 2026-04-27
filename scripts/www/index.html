@@ -1,11 +1,742 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PakePlus</title>
-    </head>
-    <body>
-        PakePlus
-    </body>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>一步法 RT‑qPCR体系计算 | 科研工具</title>
+    <style>
+        /* ---------- 全局重置 ---------- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f1f5f9;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ========= 启动画面 (炫酷科研风，4秒) ========= */
+        .splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at 40% 35%, #0a1222, #010101);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.9s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .splash-screen.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* 动态背景粒子 */
+        .splash-particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .splash-particle {
+            position: absolute;
+            background: radial-gradient(circle, #3b82f6, #a855f7);
+            border-radius: 50%;
+            opacity: 0.5;
+            animation: floatPart 12s infinite alternate;
+        }
+        @keyframes floatPart {
+            0% { transform: translateY(0) scale(1); opacity: 0.2; }
+            100% { transform: translateY(-50px) scale(1.5); opacity: 0.9; }
+        }
+
+        /* 旋转光环 */
+        .splash-ring {
+            position: absolute;
+            width: 60vmax;
+            height: 60vmax;
+            border: 1.5px solid rgba(59, 130, 246, 0.3);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation: rotateRing 25s infinite linear;
+            pointer-events: none;
+        }
+        .splash-ring:nth-child(2) {
+            width: 40vmax;
+            height: 40vmax;
+            border-color: rgba(168, 85, 247, 0.3);
+            animation-duration: 18s;
+            animation-direction: reverse;
+        }
+        @keyframes rotateRing {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        /* 扫描光带 */
+        .splash-scan {
+            position: absolute;
+            width: 140%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #3b82f6, #a855f7, #00e6c3, transparent);
+            top: 40%;
+            left: -20%;
+            filter: blur(2px);
+            animation: scanMove 5s infinite ease-in-out;
+            opacity: 0.7;
+        }
+        @keyframes scanMove {
+            0% { top: 15%; opacity: 0; transform: translateX(-20%); }
+            35% { opacity: 0.9; }
+            70% { top: 75%; opacity: 0.7; }
+            100% { top: 15%; opacity: 0; transform: translateX(20%); }
+        }
+
+        .splash-content {
+            position: relative;
+            z-index: 20;
+            text-align: center;
+            animation: gentleFloat 3s infinite alternate;
+        }
+        @keyframes gentleFloat {
+            0% { transform: translateY(0px); }
+            100% { transform: translateY(-6px); }
+        }
+
+        .splash-icon svg {
+            filter: drop-shadow(0 0 28px #3b82f6);
+            margin-bottom: 20px;
+            width: 80px;
+            height: 80px;
+        }
+
+        .splash-title {
+            font-size: clamp(48px, 10vw, 84px);
+            font-weight: 900;
+            letter-spacing: 0.12em;
+            background: linear-gradient(145deg, #FFFFFF, #9ac8ff, #7c3aed);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 20px rgba(59,130,246,0.5);
+            margin-bottom: 12px;
+        }
+
+        .splash-sub {
+            font-size: clamp(24px, 5vw, 38px);
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            background: linear-gradient(120deg, #c2e0ff, #6ba0ff);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            margin-bottom: 32px;
+        }
+
+        .splash-special {
+            font-size: clamp(24px, 5vw, 38px);
+            font-weight: 800;
+            letter-spacing: 3px;
+            background: linear-gradient(125deg, #ffffff, #c084fc, #00e6c3);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        .splash-underline {
+            width: 65%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #3b82f6, #a855f7, #00e6c3, transparent);
+            margin: 20px auto 0;
+            border-radius: 4px;
+            animation: widthPulse 2.6s infinite;
+        }
+        @keyframes widthPulse {
+            0% { width: 25%; opacity: 0.4; }
+            50% { width: 85%; opacity: 1; box-shadow: 0 0 8px #3b82f6; }
+            100% { width: 25%; opacity: 0.4; }
+        }
+
+        .splash-dots {
+            display: flex;
+            gap: 18px;
+            justify-content: center;
+            margin: 45px 0 20px;
+        }
+        .splash-dots span {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #3b82f6;
+            animation: dotFlash 2s infinite alternate;
+        }
+        .splash-dots span:nth-child(2) { background: #a855f7; animation-delay: 0.3s; }
+        .splash-dots span:nth-child(3) { background: #00e6c3; animation-delay: 0.6s; }
+        @keyframes dotFlash {
+            0% { transform: scale(0.6); opacity: 0.3; box-shadow: 0 0 0px; }
+            100% { transform: scale(1.5); opacity: 1; box-shadow: 0 0 12px currentColor; }
+        }
+
+        .splash-footer {
+            position: absolute;
+            bottom: 6%;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 12px;
+            color: #8aa3c9;
+            letter-spacing: 1.5px;
+            z-index: 20;
+        }
+
+        /* ========= 登录界面 (科研炫酷，输入框高对比) ========= */
+        .login-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at 30% 20%, #0f172a, #02060e);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.8s ease;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .login-container.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .login-card {
+            background: rgba(8, 18, 32, 0.85);
+            backdrop-filter: blur(18px);
+            border-radius: 48px;
+            padding: 48px 40px;
+            width: 90%;
+            max-width: 460px;
+            border: 1px solid rgba(59, 130, 246, 0.6);
+            box-shadow: 0 30px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 212, 255, 0.2);
+            transition: transform 0.3s;
+            text-align: center;
+        }
+        .login-card:hover {
+            transform: translateY(-5px);
+            border-color: #3b82f6;
+        }
+
+        .login-logo svg {
+            filter: drop-shadow(0 0 18px #3b82f6);
+        }
+        .login-title {
+            font-size: 28px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff, #9ac8ff, #c084fc);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            margin: 20px 0 10px;
+        }
+        .login-sub {
+            font-size: 14px;
+            color: #b0c6e8;
+            letter-spacing: 1px;
+            margin-bottom: 30px;
+        }
+        .input-group {
+            margin-bottom: 28px;
+        }
+        /* 优化：输入框文字颜色亮白，背景加深，圆点清晰 */
+        .input-group input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.65);
+            border: 1.5px solid #3b82f6;
+            padding: 14px 20px;
+            border-radius: 50px;
+            font-size: 16px;
+            color: #ffffff !important;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            outline: none;
+            transition: 0.2s;
+        }
+        .input-group input:focus {
+            border-color: #7c3aed;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+            background: rgba(0, 0, 0, 0.8);
+        }
+        /* 确保 placeholder 颜色较浅但可见 */
+        .input-group input::placeholder {
+            color: #a0b4d4;
+            opacity: 0.7;
+        }
+        .login-btn {
+            background: linear-gradient(105deg, #2563eb, #7c3aed);
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 60px;
+            font-weight: 700;
+            font-size: 17px;
+            color: white;
+            cursor: pointer;
+            transition: 0.2s;
+            letter-spacing: 1px;
+        }
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(59, 130, 246, 0.4);
+        }
+        .login-footer {
+            margin-top: 28px;
+            font-size: 11px;
+            color: #8aa3c9;
+        }
+
+        /* ========= 主程序界面 (原始样式保留) ========= */
+        .main-app {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.6s ease;
+        }
+        .main-app.show {
+            display: block;
+            opacity: 1;
+        }
+
+        /* 以下为原计算工具的完整样式 (内容未改动) */
+        :root {
+            --primary: #2563eb;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --border: #e2e8f0;
+            --text: #1e293b;
+            --success: #10b981;
+            --danger: #ef4444;
+            --secondary: #64748b;
+        }
+
+        .main-container {
+            width: 100%;
+            max-width: 450px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 8px 8px 20px;
+        }
+        .card {
+            background: var(--card);
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            padding: 12px;
+            border: 1px solid var(--border);
+        }
+        h3 { margin: 0 0 12px 0; font-size: 1.1rem; color: #0f172a; display: flex; align-items: center; gap: 6px; }
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+            background: #f8fafc;
+            padding: 10px;
+            border-radius: 6px;
+        }
+        .input-group { display: flex; flex-direction: column; }
+        label { font-size: 0.7rem; font-weight: 700; margin-bottom: 3px; color: var(--secondary); }
+        input {
+            padding: 8px;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            font-size: 0.9rem;
+            outline: none;
+            width: 100%;
+        }
+        input:focus { border-color: var(--primary); background: #fff; }
+        input[readonly] { background: #e2e8f0; color: var(--secondary); }
+        .table-wrapper {
+            width: 100%;
+            overflow-x: hidden;
+        }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        th { text-align: left; padding: 8px 4px; background: #f8fafc; font-size: 0.75rem; color: var(--secondary); border-bottom: 2px solid var(--border); }
+        td { padding: 8px 4px; border-bottom: 1px solid var(--border); vertical-align: middle; font-size: 0.85rem; }
+        .col-name { width: 38%; }
+        .col-vol { width: 26%; text-align: right; }
+        .col-total { width: 26%; text-align: right; }
+        .col-btn { width: 10%; text-align: center; }
+        .comp-input { width: 100%; border: none; background: transparent; font-size: 0.85rem; padding: 2px 0; }
+        .num-input { width: 100%; text-align: right; font-weight: 700; color: var(--primary); border: none; background: transparent; font-size: 0.9rem; padding-right: 5px; }
+        .total-val { text-align: right; font-weight: 700; color: #334155; font-size: 0.9rem; padding-right: 5px; }
+        .water-row { background-color: #fffdec; }
+        .template-row { background-color: #f9fafb; }
+        .total-row { background-color: #f1f5f9; font-weight: 700; }
+        .lib-slot {
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #fff;
+        }
+        .slot-name { width: 100%; border: none; font-weight: 700; font-size: 0.95rem; color: var(--text); border-bottom: 1px solid transparent; padding: 2px 0; margin-bottom: 8px; }
+        .btn-group { display: flex; gap: 6px; }
+        .btn {
+            border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer;
+            font-weight: 700; font-size: 0.85rem; transition: 0.1s;
+        }
+        .btn-add { background: var(--success); color: white; margin-bottom: 12px; width: 100%; }
+        .btn-save { background: var(--primary); color: white; flex: 1; }
+        .btn-load { background: white; border: 1px solid var(--border); color: var(--text); flex: 1; }
+        .btn-del { color: var(--danger); background: transparent; font-size: 1.2rem; padding: 0; line-height: 1; }
+        .footer {
+            width: 100%;
+            max-width: 450px;
+            margin: 0 auto;
+            text-align: center;
+            font-size: 10px;
+            color: #94a3b8;
+            padding: 15px 0;
+            line-height: 1.4;
+        }
+        .warn-text { color: var(--danger); font-size: 0.75rem; margin-top: 8px; display: none; font-weight: bold; }
+        header {
+            width: 100%;
+            max-width: 450px;
+            margin: 0 auto;
+            padding: 15px 5px 0;
+            text-align: center;
+        }
+        .developer-name {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--secondary);
+        }
+    </style>
+</head>
+<body>
+
+<!-- 启动画面 (炫酷科研) -->
+<div class="splash-screen" id="splashScreen">
+    <div class="splash-particles" id="splashParticles"></div>
+    <div class="splash-ring"></div>
+    <div class="splash-ring"></div>
+    <div class="splash-scan"></div>
+    <div class="splash-content">
+        <div class="splash-icon">
+            <svg width="80" height="80" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="12" y="14" width="24" height="22" rx="4" stroke="#3b82f6" stroke-width="1.8" fill="none" stroke-dasharray="4 2">
+                    <animate attributeName="stroke-dashoffset" from="0" to="-12" dur="2s" repeatCount="indefinite" />
+                </rect>
+                <path d="M18 36 L18 44 M30 36 L30 44" stroke="#a855f7" stroke-width="1.8" stroke-linecap="round"/>
+                <circle cx="24" cy="24" r="4.5" fill="#00e6c3" fill-opacity="0.4" stroke="#fff" stroke-width="1.2">
+                    <animate attributeName="r" values="3.5;5;3.5" dur="2.2s" repeatCount="indefinite" />
+                </circle>
+                <path d="M6 10 L42 10" stroke="#5b8cff" stroke-width="1.4" stroke-dasharray="4 3" opacity="0.8">
+                    <animate attributeName="opacity" values="0.4;0.9;0.4" dur="1.8s" repeatCount="indefinite" />
+                </path>
+            </svg>
+        </div>
+        <div class="splash-title">INFINITE</div>
+        <div class="splash-sub">POSSIBILITIES</div>
+        <div class="splash-dots">
+            <span></span><span></span><span></span>
+        </div>
+        <div class="splash-special">ONE-STEP RT-QPCR</div>
+        <div class="splash-underline"></div>
+    </div>
+    <div class="splash-footer">
+        一步法RT-qPCR体系计算工具 | 开发者：沙兴良
+    </div>
+</div>
+
+<!-- 登录界面 (输入框对比度优化) -->
+<div class="login-container" id="loginContainer">
+    <div class="login-card">
+        <div class="login-logo">
+            <svg width="60" height="60" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="10" y="14" width="28" height="20" rx="4" stroke="#3b82f6" stroke-width="1.6" fill="none" />
+                <path d="M18 34 L18 44 M30 34 L30 44" stroke="#a855f7" stroke-width="1.6" stroke-linecap="round"/>
+                <circle cx="24" cy="24" r="5" fill="#00e6c3" fill-opacity="0.4" stroke="#ffffff" stroke-width="1.2"/>
+                <path d="M6 8 L42 8" stroke="#5b8cff" stroke-width="1.2" stroke-dasharray="4 2" opacity="0.8"/>
+            </svg>
+        </div>
+        <div class="login-title">一步法RT-qPCR体系计算工具</div>
+        <div class="login-sub">请输入授权密码以继续</div>
+        <form id="loginForm">
+            <div class="input-group">
+                <input type="password" id="loginPassword" placeholder="访问密码" autocomplete="off">
+            </div>
+            <button type="submit" class="login-btn">验证并进入计算平台 ⚡</button>
+        </form>
+        <div class="login-footer">开发者：沙兴良 | 科研专用·安全验证</div>
+    </div>
+</div>
+
+<!-- 主程序内容 (原始计算工具，未改动任何功能) -->
+<div class="main-app" id="mainApp">
+    <header>
+        <div class="developer-name">开发者：沙兴良</div>
+    </header>
+    <div class="main-container">
+        <div class="card">
+            <h3>🔬 一步法 RT‑qPCR体系计算</h3>
+            <div class="config-grid">
+                <div class="input-group">
+                    <label>总体系(μL)</label>
+                    <input type="number" id="targetTotal" value="20" step="0.5" oninput="calculate()">
+                </div>
+                <div class="input-group">
+                    <label>样品数(N)</label>
+                    <input type="number" id="sampleN" value="10" min="1" oninput="calculate()">
+                </div>
+                <div class="input-group">
+                    <label>损耗(μL)</label>
+                    <input type="number" id="lossVol" value="0" step="0.01" oninput="calculate()">
+                </div>
+                <div class="input-group">
+                    <label>配制系数</label>
+                    <input type="text" id="factorDisplay" readonly>
+                </div>
+            </div>
+            <button class="btn btn-add" onclick="addRow()">+ 插入新组分</button>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr><th class="col-name">组分</th><th class="col-vol">单管(μL)</th><th class="col-total">总量(μL)</th><th class="col-btn"></th></tr>
+                    </thead>
+                    <tbody id="componentBody"></tbody>
+                    <tbody>
+                        <tr class="water-row"><td>ddH₂O</td><td class="total-val" id="waterSingle">0</td><td class="total-val" id="waterTotal">0</td><td></td></tr>
+                        <tr class="template-row">
+                            <td><input type="text" class="comp-input" id="templateName" value="Template DNA"></td>
+                            <td style="text-align:right"><input type="number" class="num-input" id="templateVol" value="2" step="0.1" oninput="calculate()"></td>
+                            <td class="total-val" id="templateTotalDisplay">0</td><td></td>
+                        </tr>
+                    </tbody>
+                    <tfoot><tr class="total-row"><td>总计</td><td class="total-val" id="finalSingle">20</td><td class="total-val" style="color: var(--primary)" id="finalTotal">0</td><td></td></tr></tfoot>
+                </table>
+            </div>
+            <div id="warn" class="warn-text">⚠️ 警告：组分总和已超体系！</div>
+        </div>
+        <div class="card">
+            <h3>📁 配方储存库</h3>
+            <div class="library-grid">
+                <div class="lib-slot" id="slot-0"><input class="slot-name" id="slotName-0" value="常用配方 1"><div class="btn-group"><button class="btn btn-load" onclick="loadData(0)">读取</button><button class="btn btn-save" onclick="saveData(0)">保存</button></div></div>
+                <div class="lib-slot" id="slot-1"><input class="slot-name" id="slotName-1" value="常用配方 2"><div class="btn-group"><button class="btn btn-load" onclick="loadData(1)">读取</button><button class="btn btn-save" onclick="saveData(1)">保存</button></div></div>
+                <div class="lib-slot" id="slot-2"><input class="slot-name" id="slotName-2" value="常用配方 3"><div class="btn-group"><button class="btn btn-load" onclick="loadData(2)">读取</button><button class="btn btn-save" onclick="saveData(2)">保存</button></div></div>
+            </div>
+        </div>
+        <div class="footer">
+            结果仅供参考，实际实验请结合专业判断。<br>
+            © 开发者：沙兴良
+        </div>
+    </div>
+</div>
+
+<script>
+    // ---------- 启动画面粒子生成 ----------
+    function generateSplashParticles() {
+        const container = document.getElementById('splashParticles');
+        if (!container) return;
+        const count = 35;
+        for (let i = 0; i < count; i++) {
+            const p = document.createElement('div');
+            p.classList.add('splash-particle');
+            const size = 2 + Math.random() * 6;
+            p.style.width = size + 'px';
+            p.style.height = size + 'px';
+            p.style.left = Math.random() * 100 + '%';
+            p.style.top = Math.random() * 100 + '%';
+            p.style.animationDuration = 7 + Math.random() * 8 + 's';
+            p.style.animationDelay = Math.random() * 5 + 's';
+            container.appendChild(p);
+        }
+    }
+    generateSplashParticles();
+
+    // ---------- 过渡控制: 启动画面4秒 → 登录界面 → 主程序 ----------
+    const splash = document.getElementById('splashScreen');
+    const loginContainer = document.getElementById('loginContainer');
+    const mainApp = document.getElementById('mainApp');
+
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            splash.classList.add('fade-out');
+            setTimeout(() => {
+                splash.style.display = 'none';
+                loginContainer.classList.add('visible');
+            }, 800);
+        }, 4000);
+    });
+
+    // 登录验证 (密码: SXL1224)
+    const loginForm = document.getElementById('loginForm');
+    const pwdInput = document.getElementById('loginPassword');
+    loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const pwd = pwdInput.value.trim();
+        if (pwd === "SXL1224") {
+            // 验证成功，隐藏登录界面，显示主程序
+            loginContainer.classList.remove('visible');
+            setTimeout(() => {
+                loginContainer.style.display = 'none';
+                mainApp.classList.add('show');
+                // 确保主程序中的计算函数正确初始化
+                if (typeof calculate === 'function') calculate();
+            }, 300);
+        } else {
+            alert("密码错误，请重试。");
+            pwdInput.value = "";
+            pwdInput.focus();
+        }
+    });
+
+    // ---------- 以下为原计算工具的所有函数 (完整保留) ----------
+    function smartFormat(num) {
+        const val = Math.round(num * 100) / 100;
+        return Number.isInteger(val) ? val.toString() : val.toFixed(2);
+    }
+
+    const initialComponents = [
+        { name: "Primer F", vol: 0.5 },
+        { name: "Primer R", vol: 0.5 },
+        { name: "Probe", vol: 0.3 },
+        { name: "2× Master Mix", vol: 10 },
+        { name: "RT enzyme", vol: 3 },
+        { name: "DTT", vol: 0.2 }
+    ];
+
+    window.onloadMain = function() {
+        const savedPresets = JSON.parse(localStorage.getItem('qpcr_rt_presets') || "[]");
+        savedPresets.forEach((p, i) => {
+            if (p && p.title) document.getElementById(`slotName-${i}`).value = p.title;
+        });
+        const tbody = document.getElementById('componentBody');
+        initialComponents.forEach(c => addRow(c.name, c.vol));
+        calculate();
+    };
+
+    function addRow(name = "", vol = 0) {
+        const tbody = document.getElementById('componentBody');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><input type="text" class="comp-input" value="${name}"></td>
+            <td style="text-align: right">
+                <input type="number" class="num-input row-vol" value="${vol}" step="0.1" oninput="calculate()">
+            </td>
+            <td class="total-val row-total">0</td>
+            <td style="text-align: center"><button class="btn btn-del" onclick="this.parentElement.parentElement.remove();calculate()">×</button></td>
+        `;
+        tbody.appendChild(tr);
+        calculate();
+    }
+
+    function calculate() {
+        const targetTotal = parseFloat(document.getElementById('targetTotal').value) || 0;
+        const N = parseFloat(document.getElementById('sampleN').value) || 0;
+        const loss = parseFloat(document.getElementById('lossVol').value) || 0;
+        const multiplier = N * (1 + loss / targetTotal);
+        document.getElementById('factorDisplay').value = multiplier.toFixed(2);
+
+        let usedVol = 0;
+        document.querySelectorAll('#componentBody tr').forEach(row => {
+            const v = parseFloat(row.querySelector('.row-vol').value) || 0;
+            usedVol += v;
+            row.querySelector('.row-total').innerText = smartFormat(v * multiplier);
+        });
+
+        const tVol = parseFloat(document.getElementById('templateVol').value) || 0;
+        usedVol += tVol;
+        document.getElementById('templateTotalDisplay').innerText = smartFormat(tVol * multiplier);
+
+        const waterSingle = targetTotal - usedVol;
+        const waterTotal = waterSingle * multiplier;
+        const warn = document.getElementById('warn');
+
+        if (waterSingle < 0) {
+            document.getElementById('waterSingle').innerText = "超量!";
+            document.getElementById('waterTotal').innerText = "超量!";
+            warn.style.display = 'block';
+        } else {
+            document.getElementById('waterSingle').innerText = smartFormat(waterSingle);
+            document.getElementById('waterTotal').innerText = smartFormat(waterTotal);
+            warn.style.display = 'none';
+        }
+        document.getElementById('finalSingle').innerText = smartFormat(targetTotal);
+        document.getElementById('finalTotal').innerText = smartFormat(targetTotal * multiplier);
+    }
+
+    function saveData(index) {
+        const presets = JSON.parse(localStorage.getItem('qpcr_rt_presets') || "[null, null, null]");
+        const data = {
+            title: document.getElementById(`slotName-${index}`).value,
+            targetTotal: document.getElementById('targetTotal').value,
+            lossVol: document.getElementById('lossVol').value,
+            templateName: document.getElementById('templateName').value,
+            templateVol: document.getElementById('templateVol').value,
+            components: []
+        };
+        document.querySelectorAll('#componentBody tr').forEach(row => {
+            data.components.push({
+                name: row.querySelector('.comp-input').value,
+                vol: row.querySelector('.row-vol').value
+            });
+        });
+        presets[index] = data;
+        localStorage.setItem('qpcr_rt_presets', JSON.stringify(presets));
+        const slot = document.getElementById(`slot-${index}`);
+        slot.style.backgroundColor = "#f0fdf4";
+        setTimeout(() => slot.style.backgroundColor = "white", 500);
+        alert("已保存配方：" + data.title);
+    }
+
+    function loadData(index) {
+        const presets = JSON.parse(localStorage.getItem('qpcr_rt_presets'));
+        if (!presets || !presets[index]) return alert("此槽位为空");
+        const data = presets[index];
+        document.getElementById('targetTotal').value = data.targetTotal;
+        document.getElementById('lossVol').value = data.lossVol;
+        document.getElementById('templateName').value = data.templateName;
+        document.getElementById('templateVol').value = data.templateVol;
+        const tbody = document.getElementById('componentBody');
+        tbody.innerHTML = '';
+        data.components.forEach(c => addRow(c.name, c.vol));
+        calculate();
+    }
+
+    // 当主程序显示时，确保数据初始化
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.target.classList && mutation.target.classList.contains('show')) {
+                if (document.getElementById('componentBody').children.length === 0) {
+                    const savedPresets = JSON.parse(localStorage.getItem('qpcr_rt_presets') || "[]");
+                    savedPresets.forEach((p, i) => {
+                        if (p && p.title) document.getElementById(`slotName-${i}`).value = p.title;
+                    });
+                    initialComponents.forEach(c => addRow(c.name, c.vol));
+                    calculate();
+                }
+                observer.disconnect();
+            }
+        });
+    });
+    observer.observe(mainApp, { attributes: true, attributeFilter: ['class'] });
+</script>
+</body>
 </html>
